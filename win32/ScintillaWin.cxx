@@ -101,8 +101,8 @@ typedef BOOL (WINAPI *TrackMouseEventSig)(LPTRACKMOUSEEVENT);
 
 // GCC has trouble with the standard COM ABI so do it the old C way with explicit vtables.
 
-const TCHAR scintillaClassName[] = TEXT("Scintilla");
-const TCHAR callClassName[] = TEXT("CallTip");
+const TCHAR scintillaClassName[] = TEXT("WshScintilla");
+const TCHAR callClassName[] = TEXT("WshCallTip");
 
 #ifdef SCI_NAMESPACE
 using namespace Scintilla;
@@ -2675,7 +2675,7 @@ bool ScintillaWin::Register(HINSTANCE hInstance_) {
 		// Register Scintilla as a wide character window
 		WNDCLASSEXW wndclass;
 		wndclass.cbSize = sizeof(wndclass);
-		wndclass.style = CS_GLOBALCLASS | CS_HREDRAW | CS_VREDRAW;
+		wndclass.style = CS_HREDRAW | CS_VREDRAW;
 		wndclass.lpfnWndProc = ScintillaWin::SWndProc;
 		wndclass.cbClsExtra = 0;
 		wndclass.cbWndExtra = sizeof(ScintillaWin *);
@@ -2684,7 +2684,7 @@ bool ScintillaWin::Register(HINSTANCE hInstance_) {
 		wndclass.hCursor = NULL;
 		wndclass.hbrBackground = NULL;
 		wndclass.lpszMenuName = NULL;
-		wndclass.lpszClassName = L"Scintilla";
+		wndclass.lpszClassName = L"WshScintilla";
 		wndclass.hIconSm = 0;
 		result = ::RegisterClassExW(&wndclass) != 0;
 	} else {
@@ -2692,7 +2692,7 @@ bool ScintillaWin::Register(HINSTANCE hInstance_) {
 		// Register Scintilla as a normal character window
 		WNDCLASSEX wndclass;
 		wndclass.cbSize = sizeof(wndclass);
-		wndclass.style = CS_GLOBALCLASS | CS_HREDRAW | CS_VREDRAW;
+		wndclass.style = CS_HREDRAW | CS_VREDRAW;
 		wndclass.lpfnWndProc = ScintillaWin::SWndProc;
 		wndclass.cbClsExtra = 0;
 		wndclass.cbWndExtra = sizeof(ScintillaWin *);
@@ -2710,7 +2710,7 @@ bool ScintillaWin::Register(HINSTANCE hInstance_) {
 		// Register the CallTip class
 		WNDCLASSEX wndclassc;
 		wndclassc.cbSize = sizeof(wndclassc);
-		wndclassc.style = CS_GLOBALCLASS | CS_HREDRAW | CS_VREDRAW;
+		wndclassc.style = CS_HREDRAW | CS_VREDRAW;
 		wndclassc.cbClsExtra = 0;
 		wndclassc.cbWndExtra = sizeof(ScintillaWin *);
 		wndclassc.hInstance = hInstance;

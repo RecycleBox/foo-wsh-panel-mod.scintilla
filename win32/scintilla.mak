@@ -17,11 +17,13 @@ DIR_O=..\winbuild\release
 !ENDIF
 DIR_BIN=..\bin
 
-COMPONENT=$(DIR_BIN)\Scintilla.dll
-LEXCOMPONENT=$(DIR_BIN)\SciLexer.dll
 !IFDEF DEBUG
+COMPONENT=$(DIR_BIN)\ScintillaD.dll
+LEXCOMPONENT=$(DIR_BIN)\SciLexerD.dll
 LEXCOMPONENT_LIB=$(DIR_BIN)\LibSciLexerD.lib
 !ELSE
+COMPONENT=$(DIR_BIN)\Scintilla.dll
+LEXCOMPONENT=$(DIR_BIN)\SciLexer.dll
 LEXCOMPONENT_LIB=$(DIR_BIN)\LibSciLexer.lib
 !ENDIF
 LEXLIB=Lexers.lib

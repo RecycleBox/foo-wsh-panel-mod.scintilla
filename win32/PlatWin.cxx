@@ -2113,7 +2113,7 @@ ListItemData *LineToItem::Append(const char *text, int imageIndex) {
 	return item;
 }
 
-const TCHAR ListBoxX_ClassName[] = TEXT("ListBoxX");
+const TCHAR ListBoxX_ClassName[] = TEXT("WshListBoxX");
 
 ListBox::ListBox() {
 }
