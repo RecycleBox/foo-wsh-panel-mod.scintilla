@@ -32,6 +32,5 @@ cocoa/ScintillaTest/build
 macosx/SciTest/build
 *.cppcheck
 *.user
-*.filters
 win32/vcproj/Debug
 win32/vcproj/Release
