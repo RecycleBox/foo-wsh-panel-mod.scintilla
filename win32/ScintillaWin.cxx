@@ -18,13 +18,15 @@
 #include <map>
 
 #undef _WIN32_WINNT
-#define _WIN32_WINNT  0x0500
+#define _WIN32_WINNT 0x0500
+#undef WINVER
+#define WINVER 0x0500
 #include <windows.h>
 #include <commctrl.h>
 #include <richedit.h>
 #include <windowsx.h>
 
-#if defined(_MSC_VER) && (_MSC_VER > 1200)
+#if defined(NTDDI_WIN7) && !defined(DISABLE_D2D)
 #define USE_D2D 1
 #endif
 
@@ -385,7 +387,8 @@ void ScintillaWin::Initialise() {
 
 	// Find TrackMouseEvent which is available on Windows > 95
 	HMODULE user32 = ::GetModuleHandle(TEXT("user32.dll"));
-	TrackMouseEventFn = (TrackMouseEventSig)::GetProcAddress(user32, "TrackMouseEvent");
+	if (user32)
+		TrackMouseEventFn = (TrackMouseEventSig)::GetProcAddress(user32, "TrackMouseEvent");
 	if (TrackMouseEventFn == NULL) {
 		// Windows 95 has an emulation in comctl32.dll:_TrackMouseEvent
 		HMODULE commctrl32 = ::LoadLibrary(TEXT("comctl32.dll"));
@@ -423,7 +426,7 @@ void ScintillaWin::EnsureRenderTarget() {
 		// Create a Direct2D render target.
 #if 1
 		pD2DFactory->CreateHwndRenderTarget(
-			D2D1::RenderTargetProperties(),
+			D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1::PixelFormat(), 96.0, 96.0),
 			D2D1::HwndRenderTargetProperties(hw, size),
 			&pRenderTarget);
 #else
@@ -584,11 +587,6 @@ LRESULT ScintillaWin::WndPaint(uptr_t wParam) {
 			rcPaint = PRectangle(pps->rcPaint.left, pps->rcPaint.top, pps->rcPaint.right, pps->rcPaint.bottom);
 			PRectangle rcClient = GetClientRectangle();
 			paintingAllText = rcPaint.Contains(rcClient);
-			if (paintingAllText) {
-				//Platform::DebugPrintf("Performing full text paint\n");
-			} else {
-				//Platform::DebugPrintf("Performing partial paint %d .. %d\n", rcPaint.top, rcPaint.bottom);
-			}
 			Paint(surfaceWindow, rcPaint);
 			surfaceWindow->Release();
 			HRESULT hr = pRenderTarget->EndDraw();
@@ -923,7 +921,7 @@ sptr_t ScintillaWin::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam
 		case WM_CHAR:
 			if (((wParam >= 128) || !iscntrl(wParam)) || !lastKeyDownConsumed) {
 				if (::IsWindowUnicode(MainHWND()) || keysAlwaysUnicode) {
-					wchar_t wcs[2] = {wParam, 0};
+					wchar_t wcs[2] = {static_cast<wchar_t>(wParam), 0};
 					if (IsUnicodeMode()) {
 						// For a wide character version of the window:
 						char utfval[4];
@@ -1043,7 +1041,7 @@ sptr_t ScintillaWin::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam
 				if ((pt.x == -1) && (pt.y == -1)) {
 					// Caused by keyboard so display menu near caret
 					pt = PointMainCaret();
-					POINT spt = {pt.x, pt.y};
+					POINT spt = {static_cast<int>(pt.x), static_cast<int>(pt.y)};
 					::ClientToScreen(MainHWND(), &spt);
 					pt = Point(spt.x, spt.y);
 				}
@@ -2556,27 +2554,29 @@ STDMETHODIMP ScintillaWin::Drop(LPDATAOBJECT pIDataSource, DWORD grfKeyState,
 		HRESULT hr = pIDataSource->GetData(&fmtu, &medium);
 		if (SUCCEEDED(hr) && medium.hGlobal) {
 			wchar_t *udata = static_cast<wchar_t *>(::GlobalLock(medium.hGlobal));
-			if (IsUnicodeMode()) {
-				int tlen = ::GlobalSize(medium.hGlobal);
-				// Convert UTF-16 to UTF-8
-				int dataLen = UTF8Length(udata, tlen/2);
-				data = new char[dataLen+1];
-				UTF8FromUTF16(udata, tlen/2, data, dataLen);
-				dataAllocated = true;
-			} else {
-				// Convert UTF-16 to ANSI
-				//
-				// Default Scintilla behavior in Unicode mode
-				// CF_UNICODETEXT available, but not in Unicode mode
-				// Convert from Unicode to current Scintilla code page
-				UINT cpDest = CodePageOfDocument();
-				int tlen = ::WideCharToMultiByte(cpDest, 0, udata, -1,
-					NULL, 0, NULL, NULL) - 1; // subtract 0 terminator
-				data = new char[tlen + 1];
-				memset(data, 0, (tlen+1));
-				::WideCharToMultiByte(cpDest, 0, udata, -1,
-						data, tlen + 1, NULL, NULL);
-				dataAllocated = true;
+			if (udata) {
+				if (IsUnicodeMode()) {
+					int tlen = ::GlobalSize(medium.hGlobal);
+					// Convert UTF-16 to UTF-8
+					int dataLen = UTF8Length(udata, tlen/2);
+					data = new char[dataLen+1];
+					UTF8FromUTF16(udata, tlen/2, data, dataLen);
+					dataAllocated = true;
+				} else {
+					// Convert UTF-16 to ANSI
+					//
+					// Default Scintilla behavior in Unicode mode
+					// CF_UNICODETEXT available, but not in Unicode mode
+					// Convert from Unicode to current Scintilla code page
+					UINT cpDest = CodePageOfDocument();
+					int tlen = ::WideCharToMultiByte(cpDest, 0, udata, -1,
+						NULL, 0, NULL, NULL) - 1; // subtract 0 terminator
+					data = new char[tlen + 1];
+					memset(data, 0, (tlen+1));
+					::WideCharToMultiByte(cpDest, 0, udata, -1,
+							data, tlen + 1, NULL, NULL);
+					dataAllocated = true;
+				}
 			}
 		}
 
@@ -2810,7 +2810,7 @@ sptr_t PASCAL ScintillaWin::CTWndProc(
 					} else {
 #if defined(USE_D2D)
 						pD2DFactory->CreateHwndRenderTarget(
-							D2D1::RenderTargetProperties(),
+							D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1::PixelFormat(), 96.0, 96.0),
 							D2D1::HwndRenderTargetProperties(hWnd, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)),
 							&pCTRenderTarget);
 						surfaceWindow->Init(pCTRenderTarget, hWnd);
